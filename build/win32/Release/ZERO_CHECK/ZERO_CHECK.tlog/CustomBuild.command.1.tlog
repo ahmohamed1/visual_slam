@@ -1,0 +1,10 @@
+^Z:\003.WORKSPACE\011.DL_PROJECT\VISUAL_SLAM\BUILD\CMAKEFILES\97C071B403A05F5C74A312C99B0D4E83\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SZ:/003.WorkSpace/011.DL_project/visual_slam -BZ:/003.WorkSpace/011.DL_project/visual_slam/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file Z:/003.WorkSpace/011.DL_project/visual_slam/build/visual_slam.sln
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

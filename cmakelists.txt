@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.5)
+set(CMAKE_CXX_STANDARD 20)
+
+project(visual_slam)
+
+set(CMAKE_TOOLCHAIN_FILE "C:/src/vcpkg/installed/x64-windows/share")
+
+
+include_directories( include )
+add_executable(main main.cpp)
+
+
+find_package(OpenCV CONFIG REQUIRED)
+include_directories(OpenCV_INCLUDE_DIR)
+target_link_libraries(main PRIVATE ${OpenCV_LIBS})
