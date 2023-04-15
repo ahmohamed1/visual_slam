@@ -51,7 +51,7 @@ class Feature_matching{
         {
             load_calibration(file_path);
             print_calibrations();
-            detector = ORB::create();
+            detector = ORB::create(3000);
             descriptor = ORB::create();
             matcher = DescriptorMatcher::create("BruteForce-Hamming");
             trajectory = cv::Mat(700, 700, CV_8UC3, cv::Scalar(255,255,255));

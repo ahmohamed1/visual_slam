@@ -9,50 +9,7 @@
 using namespace std;
 using namespace cv;
 
-/**
- * @brief Get the Absolute Scale object
- * this function took from https://github.com/avisingh599/mono-vo/blob/master/src/visodo.cpp
- * @param frame_id 
- * @param sequence_id 
- * @param z_cal 
- * @return double 
- */
 
-double getAbsoluteScale(int frame_id, int sequence_id, double z_cal)	{
-  
-  string line;
-  int i = 0;
-  ifstream myfile ("../../datasets/00.txt");
-  double x =0, y=0, z = 0;
-  double x_prev, y_prev, z_prev;
-  if (myfile.is_open())
-  {
-    while (( getline (myfile,line) ) && (i<=frame_id))
-    {
-      z_prev = z;
-      x_prev = x;
-      y_prev = y;
-      std::istringstream in(line);
-      //cout << line << '\n';
-      for (int j=0; j<12; j++)  {
-        in >> z ;
-        if (j==7) y=z;
-        if (j==3)  x=z;
-      }
-      
-      i++;
-    }
-    myfile.close();
-  }
-
-  else {
-    cout << "Unable to open file";
-    return 0;
-  }
-
-  return sqrt((x-x_prev)*(x-x_prev) + (y-y_prev)*(y-y_prev) + (z-z_prev)*(z-z_prev)) ;
-
-}
 
 
 class Visual_Odom_optical{
@@ -74,6 +31,9 @@ class Visual_Odom_optical{
 
         int loop_through_image(std::string file_dir)
         {
+            cv::Mat camera_pose = cv::Mat::zeros(3,1, CV_64F);
+            cv::Mat camera_rotation = cv::Mat::eye(3,3, CV_64F);
+
             cv::VideoCapture images;
             if( images.open(file_dir) == false)
             {
@@ -85,7 +45,7 @@ class Visual_Odom_optical{
             std::vector<cv::KeyPoint> keypoints_old;
             
             int frame_indx = 0;
-            image.read(frame_old);
+            images.read(frame_old);
             detector->detect(frame_old, keypoints_old);
             std::vector<cv::Point2f> keypoints_pos_old(keypoints_old.size()), keypoints_pos_new;
             cv::KeyPoint::convert(keypoints_old, keypoints_pos_old, vector<int>());
@@ -115,17 +75,17 @@ class Visual_Odom_optical{
                         if(point.x<0 || point.y <0)
                             status.at(i) = 0;
                     }
-                    keypoints_pos_old.eras(keypoints_pos_old.begin() + (i - index));
-                    keypoints_pos_new.eras(keypoints_pos_new.begin() + (i - index));
+                    keypoints_pos_old.erase(keypoints_pos_old.begin() + (i - index));
+                    keypoints_pos_new.erase(keypoints_pos_new.begin() + (i - index));
                     index++;
                 }
                 
                 cv::Mat R, t, essential_matrix, mask;
                 essential_matrix = cv::findEssentialMat(keypoints_pos_new, keypoints_pos_old,
                                                         focal_length, principal_point, RANSAC, 0.999, 1.0, mask);
+                cv::recoverPose(essential_matrix, keypoints_pos_new, keypoints_pos_old, R, t, 
+                                focal_length, principal_point, mask);
 
-                cv::recoverPose(essential_matrix, keypoints_pos_new, keypoints_pos_old,
-                                R, t, principal_point, mask);
                 
                 // assigne current to old
                 frame_old = frame_current.clone();
@@ -214,5 +174,50 @@ class Visual_Odom_optical{
             // std::cout<<"tranformation_matrix: \n"<< tranformation_matrix<<std::endl;
             // std::cout<<"Rotation: "<< rotation_groundtruth<<std::endl;
             // std::cout<<"Translation: " << translation_groundtruth<<std::endl;
+        }
+
+        /**
+         * @brief Get the Absolute Scale object
+         * this function took from https://github.com/avisingh599/mono-vo/blob/master/src/visodo.cpp
+         * @param frame_id 
+         * @param sequence_id 
+         * @param z_cal 
+         * @return double 
+         */
+
+        double getAbsoluteScale(int frame_id, int sequence_id, double z_cal)	{
+        
+        string line;
+        int i = 0;
+        ifstream myfile ("../../datasets/00.txt");
+        double x =0, y=0, z = 0;
+        double x_prev, y_prev, z_prev;
+        if (myfile.is_open())
+        {
+            while (( getline (myfile,line) ) && (i<=frame_id))
+            {
+            z_prev = z;
+            x_prev = x;
+            y_prev = y;
+            std::istringstream in(line);
+            //cout << line << '\n';
+            for (int j=0; j<12; j++)  {
+                in >> z ;
+                if (j==7) y=z;
+                if (j==3)  x=z;
+            }
+            
+            i++;
+            }
+            myfile.close();
+        }
+
+        else {
+            cout << "Unable to open file";
+            return 0;
+        }
+
+        return sqrt((x-x_prev)*(x-x_prev) + (y-y_prev)*(y-y_prev) + (z-z_prev)*(z-z_prev)) ;
+
         }
 };
