@@ -6,7 +6,7 @@ project(visual_slam)
 set(CMAKE_TOOLCHAIN_FILE "C:/src/vcpkg/installed/x64-windows/share")
 
 
-include_directories(include )
+include_directories(include)
 add_executable(main main.cpp)
 
 
