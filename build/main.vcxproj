@@ -366,7 +366,7 @@ if %errorlevel% neq 0 goto :VCEnd</Command>
     </CustomBuild>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="Z:\003.WorkSpace\011.DL_project\visual_slam\main.cpp" />
+    <ClCompile Include="Z:\003.WorkSpace\011.DL_project\visual_slam\main2.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="Z:\003.WorkSpace\011.DL_project\visual_slam\build\ZERO_CHECK.vcxproj">

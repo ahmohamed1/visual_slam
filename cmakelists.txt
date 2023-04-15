@@ -7,7 +7,7 @@ set(CMAKE_TOOLCHAIN_FILE "C:/src/vcpkg/installed/x64-windows/share")
 
 
 include_directories(include )
-add_executable(main main.cpp)
+add_executable(main main2.cpp)
 
 
 find_package(OpenCV CONFIG REQUIRED)
