@@ -69,27 +69,15 @@ class Visual_Odom_optical{
                 track_features(frame_old, frame_current, keypoints_pos_old, keypoints_pos_new);
                 compute_position(keypoints_pos_old, keypoints_pos_new, frame_indx);
                 
-                // plot the point trajectory 
-                double x = camera_pose.at<double>(0)+350;
-                double y = camera_pose.at<double>(2)+100;
-                cv::circle(trajectory, cv::Point2d(x, y), 1, cv::Scalar(0,0,255),-1);
-
-                // plote the ground truth
-                double y_gt = translation_groundtruth[frame_indx].at<double>(2) + 100;
-                double x_gt = translation_groundtruth[frame_indx].at<double>(0) + 350;
-                cv::circle(trajectory, cv::Point2d(x_gt, y_gt), 1, cv::Scalar(250,0,0),-1);
-
-                cv::imshow("trajectory", trajectory);
-                cv::imshow("view", frame_current);
-                char ikey = waitKey(1);
-                if (ikey =='q')
-                    break;
-                // assinge the current frmae to old frame
-                
                 // assigne current to old
                 frame_old = frame_current.clone();
                 keypoints_pos_old = keypoints_pos_new;
                 frame_indx ++;
+
+                // plot the point trajectory 
+                bool break_loop = plot_path(frame_current, frame_indx);
+                if (break_loop)
+                    break;
             }   
             return 0;
         }
@@ -222,39 +210,57 @@ class Visual_Odom_optical{
          * @return double 
          */
 
-        double getAbsoluteScale(int frame_id, int sequence_id, double z_cal)	{
-        
-        string line;
-        int i = 0;
-        ifstream myfile ("../../datasets/00.txt");
-        double x =0, y=0, z = 0;
-        double x_prev, y_prev, z_prev;
-        if (myfile.is_open())
+        double getAbsoluteScale(int frame_id, int sequence_id, double z_cal)	
         {
-            while (( getline (myfile,line) ) && (i<=frame_id))
+            string line;
+            int i = 0;
+            ifstream myfile ("../../datasets/00.txt");
+            double x =0, y=0, z = 0;
+            double x_prev, y_prev, z_prev;
+            if (myfile.is_open())
             {
-            z_prev = z;
-            x_prev = x;
-            y_prev = y;
-            std::istringstream in(line);
-            //cout << line << '\n';
-            for (int j=0; j<12; j++)  {
-                in >> z ;
-                if (j==7) y=z;
-                if (j==3)  x=z;
+                while (( getline (myfile,line) ) && (i<=frame_id))
+                {
+                    z_prev = z;
+                    x_prev = x;
+                    y_prev = y;
+                    std::istringstream in(line);
+                    //cout << line << '\n';
+                    for (int j=0; j<12; j++)  
+                    {
+                        in >> z ;
+                        if (j==7) y=z;
+                        if (j==3)  x=z;
+                    }
+                    i++;
+                }
+                myfile.close();
             }
-            
-            i++;
+            else 
+            {
+                cout << "Unable to open file";
+                return 0;
             }
-            myfile.close();
+            return sqrt((x-x_prev)*(x-x_prev) + (y-y_prev)*(y-y_prev) + (z-z_prev)*(z-z_prev)) ;
         }
 
-        else {
-            cout << "Unable to open file";
-            return 0;
-        }
+        bool plot_path(cv::Mat image,int frame_indx)
+        {
+            double x = camera_pose.at<double>(0)+350;
+            double y = camera_pose.at<double>(2)+100;
+            cv::circle(trajectory, cv::Point2d(x, y), 1, cv::Scalar(0,0,255),-1);
 
-        return sqrt((x-x_prev)*(x-x_prev) + (y-y_prev)*(y-y_prev) + (z-z_prev)*(z-z_prev)) ;
+            // plote the ground truth
+            double y_gt = translation_groundtruth[frame_indx].at<double>(2) + 100;
+            double x_gt = translation_groundtruth[frame_indx].at<double>(0) + 350;
+            cv::circle(trajectory, cv::Point2d(x_gt, y_gt), 1, cv::Scalar(250,0,0),-1);
 
+            cv::imshow("trajectory", trajectory);
+            cv::imshow("view", image);
+            char ikey = waitKey(1);
+            if (ikey =='q')
+                return true;
+            else
+                return false;
         }
 };
