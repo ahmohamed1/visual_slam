@@ -20,7 +20,9 @@ class Visual_Odom_optical{
             print_calibrations();
             detector = ORB::create(4000);
             trajectory = cv::Mat(700, 700, CV_8UC3, cv::Scalar(255,255,255));
-
+            cv::rectangle(trajectory,cv::Point2f(10,10), cv::Point2f(130,70), cv::Scalar(0,0,0),2);
+            cv::putText(trajectory, "gound truth", cv::Point2f(15,30),1 ,1.1, cv::Scalar(255,0,0));
+            cv::putText(trajectory, "Computed", cv::Point2f(15,55),1, 1.1, cv::Scalar(0,0,255));
             if(ground_truth != "")
             {
                 load_ground_truth(ground_truth);
@@ -29,9 +31,9 @@ class Visual_Odom_optical{
 
         void print_calibrations()
         {
-            std::cout<<"Camera Matrix: "<< K <<std::endl;
-            std::cout<<"Focal Length: "<< focal_length <<std::endl;
-            std::cout<<"Principle Point: "<< principal_point <<std::endl;
+            std::cout<<"Camera Matrix: \n"<< K <<std::endl;
+            std::cout<<"Focal Length: \n"<< focal_length <<std::endl;
+            std::cout<<"Principle Point: \n"<< principal_point <<std::endl;
         }
 
         int loop_through_image(std::string file_dir)
