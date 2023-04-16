@@ -14,12 +14,17 @@ using namespace cv;
 
 class Visual_Odom_optical{
     public:
-        Visual_Odom_optical(std::string file_path)
+        Visual_Odom_optical(std::string file_path, std::string ground_truth="")
         {
             load_calibration(file_path);
             print_calibrations();
             detector = ORB::create(3000);
             trajectory = cv::Mat(700, 700, CV_8UC3, cv::Scalar(255,255,255));
+
+            if(ground_truth != "")
+            {
+                load_ground_truth(ground_truth);
+            }
         }
 
         void print_calibrations()
@@ -44,43 +49,34 @@ class Visual_Odom_optical{
             cv::Mat frame_old;
             std::vector<cv::KeyPoint> keypoints_old;
             
-            int frame_indx = 0;
+            int frame_indx = 2;
             images.read(frame_old);
-            detector->detect(frame_old, keypoints_old);
+            // detector->detect(frame_old, keypoints_old);
+            cv::FAST(frame_old, keypoints_old, 20, true);
             std::vector<cv::Point2f> keypoints_pos_old(keypoints_old.size()), keypoints_pos_new;
             cv::KeyPoint::convert(keypoints_old, keypoints_pos_old, vector<int>());
-            vector<float> error;					
-            cv::Size window_size=Size(21,21);																								
-            cv::TermCriteria termcrit=TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01);
+            images.read(frame_current);
+            track_features(frame_old, frame_current, keypoints_pos_old, keypoints_pos_new);
+            cv::Mat R, t, essential_matrix, mask; 
+            essential_matrix = cv::findEssentialMat(keypoints_pos_new, keypoints_pos_old,
+                                                    focal_length, principal_point, RANSAC, 0.999, 1.0, mask);
+            cv::recoverPose(essential_matrix, keypoints_pos_new, keypoints_pos_old, R, t, 
+                            focal_length, principal_point, mask);
+
+            camera_pose = t.clone();
+            camera_rotation = R.clone();
+            
             while(images.read(frame_current))
             {
                 if(keypoints_pos_old.size() < 2000)
                 {
-                    detector->detect(frame_old, keypoints_old);
+                    // detector->detect(frame_old, keypoints_old);
+                    cv::FAST(frame_old, keypoints_old, 20, true);
                     cv::KeyPoint::convert(keypoints_old, keypoints_pos_old, vector<int>());
                 }
-                // use optical flow to detect the feature in the next frame
-                std::vector<uchar> status;
-                cv::calcOpticalFlowPyrLK(frame_old, frame_current, 
-                                         keypoints_pos_old, keypoints_pos_new,
-                                         status, error, window_size, 3, termcrit,0, 0.001);
 
-                // remove the outlier points
-                int index = 0;
-                for (int i = 0; i < status.size(); i++)
-                {
-                    cv::Point2f point = keypoints_pos_new.at(i-index);
-                    if(status.at(i) == 0 || (point.x<0 || point.y <0))
-                    {
-                        if(point.x<0 || point.y <0)
-                            status.at(i) = 0;
-                    }
-                    keypoints_pos_old.erase(keypoints_pos_old.begin() + (i - index));
-                    keypoints_pos_new.erase(keypoints_pos_new.begin() + (i - index));
-                    index++;
-                }
-                
-                cv::Mat R, t, essential_matrix, mask;
+                track_features(frame_old, frame_current, keypoints_pos_old, keypoints_pos_new);
+                                
                 essential_matrix = cv::findEssentialMat(keypoints_pos_new, keypoints_pos_old,
                                                         focal_length, principal_point, RANSAC, 0.999, 1.0, mask);
                 cv::recoverPose(essential_matrix, keypoints_pos_new, keypoints_pos_old, R, t, 
@@ -103,6 +99,12 @@ class Visual_Odom_optical{
                 double x = camera_pose.at<double>(0)+350;
                 double y = camera_pose.at<double>(2)+100;
                 cv::circle(trajectory, cv::Point2d(x, y), 1, cv::Scalar(0,0,255),-1);
+
+                // plote the ground truth
+                double y_gt = translation_groundtruth[frame_indx].at<double>(2) + 100;
+                double x_gt = translation_groundtruth[frame_indx].at<double>(0) + 350;
+                cv::circle(trajectory, cv::Point2d(x_gt, y_gt), 1, cv::Scalar(250,0,0),-1);
+
                 cv::imshow("trajectory", trajectory);
                 cv::imshow("view", frame_current);
                 char ikey = waitKey(1);
@@ -123,12 +125,39 @@ class Visual_Odom_optical{
         double focal_length;
         cv::Point2d principal_point;
 
-        cv::Mat translation_groundtruth;
+        std::vector<cv::Mat> translation_groundtruth;
         cv::Mat rotation_groundtruth;
+        cv::Size window_size=Size(21,21);																								
+        cv::TermCriteria termcrit=TermCriteria(TermCriteria::COUNT+TermCriteria::EPS, 30, 0.01);
+        vector<float> _error;
 
         bool DEGUB = false;
 
-
+        void track_features(cv::Mat frame_old, cv::Mat frame_current,
+                            std::vector<cv::Point2f>& keypoints_pos_old, 
+                            std::vector<cv::Point2f>& keypoints_pos_new)
+        {
+            // use optical flow to detect the feature in the next frame
+            std::vector<uchar> status;
+            cv::calcOpticalFlowPyrLK(frame_old, frame_current, 
+                                    keypoints_pos_old, keypoints_pos_new,
+                                    status, _error, window_size, 3, termcrit,0, 0.001);
+        
+            // remove the outlier points
+            int index = 0;
+            for (int i = 0; i < status.size(); i++)
+            {
+                cv::Point2f point = keypoints_pos_new.at(i-index);
+                if((status.at(i) == 0) || (point.x<0) || (point.y <0))
+                {
+                    if((point.x<0) || (point.y <0))
+                        status.at(i) = 0;
+                    keypoints_pos_old.erase(keypoints_pos_old.begin() + (i - index));
+                    keypoints_pos_new.erase(keypoints_pos_new.begin() + (i - index));
+                    index++;
+                }
+            }
+        }
         void load_calibration(std::string file_path)
         {
             std::string line;
@@ -136,9 +165,9 @@ class Visual_Odom_optical{
             std::getline(f, line);
             std::istringstream ss(line);
             cv::Mat projection_matrix = cv::Mat1d(3, 4);
-            for (int r = 0; r < 4; r++)
+            for (int r = 0; r < 3; r++)
             {
-                for (int c = 0; c < 3; c++)
+                for (int c = 0; c < 4; c++)
                 {
                     double data =0.0f;
                     ss >> data;
@@ -154,23 +183,26 @@ class Visual_Odom_optical{
 
         void load_ground_truth(std::string file_path)
         {
+            std::cout<<"[INFO] Load ground truth data.. \n";
             std::string line;
             std::ifstream f(file_path);
-            std::getline(f, line);
-            std::istringstream ss(line);
-            cv::Mat tranformation_matrix = cv::Mat1d(3, 4);
-            for (int r = 0; r < 3; r++)
+            
+            while(std::getline(f, line))
             {
-                for (int c = 0; c < 4; c++)
+                std::istringstream ss(line);
+                cv::Mat tranformation_matrix = cv::Mat1d(3, 4);
+                for (int r = 0; r < 3; r++)
                 {
-                    double data =0.0f;
-                    ss >> data;
-                    tranformation_matrix.at<double>(r,c) = data;
+                    for (int c = 0; c < 4; c++)
+                    {
+                        double data =0.0f;
+                        ss >> data;
+                        tranformation_matrix.at<double>(r,c) = data;
+                    }
                 }
+                rotation_groundtruth = tranformation_matrix(cv::Range(0, 3), cv::Range(0, 3));
+                translation_groundtruth.push_back(tranformation_matrix(cv::Range(0, 3), cv::Range(3,4)));
             }
-            rotation_groundtruth = tranformation_matrix(cv::Range(0, 3), cv::Range(0, 3));
-            translation_groundtruth = tranformation_matrix(cv::Range(0, 3), cv::Range(3,4));
-
             // std::cout<<"tranformation_matrix: \n"<< tranformation_matrix<<std::endl;
             // std::cout<<"Rotation: "<< rotation_groundtruth<<std::endl;
             // std::cout<<"Translation: " << translation_groundtruth<<std::endl;

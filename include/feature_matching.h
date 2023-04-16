@@ -236,9 +236,9 @@ class Feature_matching{
             std::getline(f, line);
             std::istringstream ss(line);
             cv::Mat projection_matrix = cv::Mat1d(3, 4);
-            for (int r = 0; r < 4; r++)
+            for (int r = 0; r < 3; r++)
             {
-                for (int c = 0; c < 3; c++)
+                for (int c = 0; c < 4; c++)
                 {
                     double data =0.0f;
                     ss >> data;
