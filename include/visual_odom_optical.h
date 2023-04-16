@@ -38,9 +38,6 @@ class Visual_Odom_optical{
 
         int loop_through_image(std::string file_dir)
         {
-            cv::Mat camera_pose = cv::Mat::zeros(3,1, CV_64F);
-            cv::Mat camera_rotation = cv::Mat::eye(3,3, CV_64F);
-
             cv::VideoCapture images;
             if( images.open(file_dir) == false)
             {
@@ -58,14 +55,8 @@ class Visual_Odom_optical{
             cv::KeyPoint::convert(keypoints_old, keypoints_pos_old, vector<int>());
             images.read(frame_current);
             track_features(frame_old, frame_current, keypoints_pos_old, keypoints_pos_new);
-            cv::Mat R, t, essential_matrix, mask; 
-            essential_matrix = cv::findEssentialMat(keypoints_pos_new, keypoints_pos_old,
-                                                    focal_length, principal_point, RANSAC, 0.999, 1.0, mask);
-            cv::recoverPose(essential_matrix, keypoints_pos_new, keypoints_pos_old, R, t, 
-                            focal_length, principal_point, mask);
+            compute_position(keypoints_pos_old, keypoints_pos_new, frame_indx);
 
-            camera_pose = t.clone();
-            camera_rotation = R.clone();
             
             while(images.read(frame_current))
             {
@@ -76,24 +67,7 @@ class Visual_Odom_optical{
                 }
 
                 track_features(frame_old, frame_current, keypoints_pos_old, keypoints_pos_new);
-                                
-                essential_matrix = cv::findEssentialMat(keypoints_pos_new, keypoints_pos_old,
-                                                        focal_length, principal_point, RANSAC, 0.999, 1.0, mask);
-                cv::recoverPose(essential_matrix, keypoints_pos_new, keypoints_pos_old, R, t, 
-                                focal_length, principal_point, mask);
-
-                
-                // assigne current to old
-                frame_old = frame_current.clone();
-                keypoints_pos_old = keypoints_pos_new;
-                frame_indx ++;
-                // Add to the final rotations
-                double scale = getAbsoluteScale(frame_indx, 0, t.at<double>(2));
-                if ((scale>0.1)&&(t.at<double>(2) > t.at<double>(0)) && (t.at<double>(2) > t.at<double>(1)))
-                {
-                    camera_pose = camera_pose + scale*(camera_rotation*t);
-                    camera_rotation = R*camera_rotation;
-                }
+                compute_position(keypoints_pos_old, keypoints_pos_new, frame_indx);
                 
                 // plot the point trajectory 
                 double x = camera_pose.at<double>(0)+350;
@@ -112,7 +86,11 @@ class Visual_Odom_optical{
                     break;
                 // assinge the current frmae to old frame
                 
-            }
+                // assigne current to old
+                frame_old = frame_current.clone();
+                keypoints_pos_old = keypoints_pos_new;
+                frame_indx ++;
+            }   
             return 0;
         }
 
@@ -124,6 +102,9 @@ class Visual_Odom_optical{
         cv::Mat K;
         double focal_length;
         cv::Point2d principal_point;
+
+        cv::Mat camera_pose = cv::Mat::zeros(3,1, CV_64F);
+        cv::Mat camera_rotation = cv::Mat::eye(3,3, CV_64F);
 
         std::vector<cv::Mat> translation_groundtruth;
         cv::Mat rotation_groundtruth;
@@ -156,6 +137,30 @@ class Visual_Odom_optical{
                     keypoints_pos_new.erase(keypoints_pos_new.begin() + (i - index));
                     index++;
                 }
+            }
+        }
+
+        void compute_position(std::vector<cv::Point2f> keypoints_pos_old, 
+                              std::vector<cv::Point2f> keypoints_pos_new,
+                              int frame_index)
+        {
+            cv::Mat R, t, mask;
+            cv::Mat essential_matrix = cv::findEssentialMat(keypoints_pos_new, keypoints_pos_old,
+                                                    focal_length, principal_point, RANSAC, 0.999, 1.0, mask);
+            cv::recoverPose(essential_matrix, keypoints_pos_new, keypoints_pos_old, R, t, 
+                            focal_length, principal_point, mask);
+                            // Add to the final rotations
+            double scale = getAbsoluteScale(frame_index, 0, t.at<double>(2));
+            if ((scale>0.1)&&(t.at<double>(2) > t.at<double>(0)) && (t.at<double>(2) > t.at<double>(1)))
+            {
+                camera_pose = camera_pose + scale*(camera_rotation*t);
+                camera_rotation = R*camera_rotation;
+            }
+            // This is the first iteration
+            if(frame_index == 2)
+            {
+                camera_pose = t.clone();
+                camera_rotation = R.clone();
             }
         }
         void load_calibration(std::string file_path)
