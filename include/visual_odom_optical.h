@@ -18,7 +18,7 @@ class Visual_Odom_optical{
         {
             load_calibration(file_path);
             print_calibrations();
-            detector = ORB::create(3000);
+            detector = ORB::create(4000);
             trajectory = cv::Mat(700, 700, CV_8UC3, cv::Scalar(255,255,255));
 
             if(ground_truth != "")
@@ -51,8 +51,7 @@ class Visual_Odom_optical{
             
             int frame_indx = 2;
             images.read(frame_old);
-            // detector->detect(frame_old, keypoints_old);
-            cv::FAST(frame_old, keypoints_old, 20, true);
+            detector->detect(frame_old, keypoints_old);
             std::vector<cv::Point2f> keypoints_pos_old(keypoints_old.size()), keypoints_pos_new;
             cv::KeyPoint::convert(keypoints_old, keypoints_pos_old, vector<int>());
             images.read(frame_current);
@@ -70,8 +69,7 @@ class Visual_Odom_optical{
             {
                 if(keypoints_pos_old.size() < 2000)
                 {
-                    // detector->detect(frame_old, keypoints_old);
-                    cv::FAST(frame_old, keypoints_old, 20, true);
+                    detector->detect(frame_old, keypoints_old);
                     cv::KeyPoint::convert(keypoints_old, keypoints_pos_old, vector<int>());
                 }
 
