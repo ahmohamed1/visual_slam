@@ -2,7 +2,7 @@
 #include "opencv2/opencv.hpp"
 #include "include/feature_matching.h"
 #include "include/visual_odom_optical.h"
-
+#include "include/stereo_visual_odom_optical.h"
 
 int main()
 {
