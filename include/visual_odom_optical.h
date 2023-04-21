@@ -87,6 +87,7 @@ class Visual_Odom_optical{
         cv::Mat trajectory;
 
         // Camera Intrinsics
+        std::vector<cv::Mat> projection_matrix = {cv::Mat1d(3, 4), cv::Mat1d(3, 4)};
         cv::Mat K;
         double focal_length;
         cv::Point2d principal_point;
@@ -157,20 +158,23 @@ class Visual_Odom_optical{
             std::ifstream f(file_path);
             std::getline(f, line);
             std::istringstream ss(line);
-            cv::Mat projection_matrix = cv::Mat1d(3, 4);
-            for (int r = 0; r < 3; r++)
+            
+            for (int i = 0; i < 2; i++)
             {
-                for (int c = 0; c < 4; c++)
+                for (int r = 0; r < 3; r++)
                 {
-                    double data =0.0f;
-                    ss >> data;
-                    projection_matrix.at<double>(r,c) = data;
+                    for (int c = 0; c < 4; c++)
+                    {
+                        double data =0.0f;
+                        ss >> data;
+                        projection_matrix[i].at<double>(r,c) = data;
+                    }
                 }
             }
-            K = projection_matrix(cv::Range(0, 3), cv::Range(0, 3));
-            focal_length = projection_matrix.at<double>(0,0);
-            double cx = projection_matrix.at<double>(0,2);
-            double cy = projection_matrix.at<double>(1,2);
+            K = projection_matrix[0](cv::Range(0, 3), cv::Range(0, 3));
+            focal_length = projection_matrix[0].at<double>(0,0);
+            double cx = projection_matrix[0].at<double>(0,2);
+            double cy = projection_matrix[0].at<double>(1,2);
             principal_point = cv::Point2d(cx,cy);
         }
 
